@@ -41,6 +41,12 @@ class LockOverlayActivity : ComponentActivity() {
     private var showingA = true
     private var currentArtId = 0
 
+    // Progress tracking
+    private var trackDuration = 0L
+    private var trackPosition = 0L
+    private var isPlaying = false
+    private var userSeeking = false
+
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
     private val clockHandler = Handler(Looper.getMainLooper())
@@ -48,6 +54,17 @@ class LockOverlayActivity : ComponentActivity() {
         override fun run() {
             updateClock()
             clockHandler.postDelayed(this, 10_000)
+        }
+    }
+
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val progressTick = object : Runnable {
+        override fun run() {
+            if (isPlaying && !userSeeking) {
+                trackPosition += 1000
+                updateProgressUi()
+            }
+            progressHandler.postDelayed(this, 1000)
         }
     }
 
@@ -71,6 +88,25 @@ class LockOverlayActivity : ComponentActivity() {
         binding.playPause.setOnClickListener { Transport.playPause() }
         binding.next.setOnClickListener { Transport.next() }
         binding.prev.setOnClickListener { Transport.previous() }
+        binding.shuffle.setOnClickListener { Transport.toggleShuffle() }
+
+        binding.progress.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
+                if (fromUser && trackDuration > 0) {
+                    val ms = (p / 1000f * trackDuration).toLong()
+                    binding.elapsed.text = formatTime(ms)
+                }
+            }
+            override fun onStartTrackingTouch(sb: android.widget.SeekBar?) { userSeeking = true }
+            override fun onStopTrackingTouch(sb: android.widget.SeekBar?) {
+                if (trackDuration > 0) {
+                    val ms = (binding.progress.progress / 1000f * trackDuration).toLong()
+                    trackPosition = ms
+                    Transport.seekTo(ms)
+                }
+                userSeeking = false
+            }
+        })
 
         observeState()
     }
@@ -79,12 +115,14 @@ class LockOverlayActivity : ComponentActivity() {
         super.onResume()
         updateClock()
         clockHandler.postDelayed(clockTick, 10_000)
+        progressHandler.postDelayed(progressTick, 1000)
         applyBackdropBlur()
     }
 
     override fun onPause() {
         super.onPause()
         clockHandler.removeCallbacks(clockTick)
+        progressHandler.removeCallbacks(progressTick)
     }
 
     /** Soft blur on the full-screen backdrop (driven by Prefs blur slider). */
@@ -142,12 +180,20 @@ class LockOverlayActivity : ComponentActivity() {
             if (art.generationId != currentArtId) {
                 currentArtId = art.generationId
                 crossfadeTo(art)
-                binding.cardBlur.setImageBitmap(art)
+                binding.cardBlur.animate().alpha(0f).setDuration(300).withEndAction {
+                    binding.cardBlur.setImageBitmap(art)
+                    binding.cardBlur.animate().alpha(1f).setDuration(500).start()
+                }.start()
                 startKenBurns()
             }
         }
 
         applyBrightness(track.artLuminance)
+
+        isPlaying = track.isPlaying
+        trackDuration = track.durationMs
+        trackPosition = track.positionMs
+        updateProgressUi()
 
         binding.playPause.setImageResource(
             if (track.isPlaying) android.R.drawable.ic_media_pause
@@ -162,6 +208,27 @@ class LockOverlayActivity : ComponentActivity() {
         }
     }
 
+    private fun updateProgressUi() {
+        if (userSeeking) return
+        if (trackDuration > 0) {
+            val pct = (trackPosition.toFloat() / trackDuration * 1000).toInt().coerceIn(0, 1000)
+            binding.progress.progress = pct
+            binding.elapsed.text = formatTime(trackPosition)
+            binding.total.text = formatTime(trackDuration)
+        } else {
+            binding.progress.progress = 0
+            binding.elapsed.text = "0:00"
+            binding.total.text = "0:00"
+        }
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSec = (ms / 1000).coerceAtLeast(0)
+        val m = totalSec / 60
+        val s = totalSec % 60
+        return "%d:%02d".format(m, s)
+    }
+
     /** Smoothly dissolve from the visible backdrop to the new artwork. */
     private fun crossfadeTo(art: Bitmap) {
         val incoming: ImageView = if (showingA) binding.backdropB else binding.backdropA
@@ -169,8 +236,8 @@ class LockOverlayActivity : ComponentActivity() {
 
         incoming.setImageBitmap(art)
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(650).start()
-        outgoing.animate().alpha(0f).setDuration(650).start()
+        incoming.animate().alpha(1f).setDuration(1100).start()
+        outgoing.animate().alpha(0f).setDuration(1100).start()
 
         showingA = !showingA
     }
@@ -199,5 +266,6 @@ class LockOverlayActivity : ComponentActivity() {
         super.onDestroy()
         kenBurns?.cancel()
         clockHandler.removeCallbacks(clockTick)
+        progressHandler.removeCallbacks(progressTick)
     }
 }

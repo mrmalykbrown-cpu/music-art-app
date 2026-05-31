@@ -29,4 +29,19 @@ object Transport {
     fun previous() {
         controller?.transportControls?.skipToPrevious()
     }
+
+    fun seekTo(ms: Long) {
+        controller?.transportControls?.seekTo(ms)
+    }
+
+    fun toggleShuffle() {
+        val c = controller ?: return
+        val mode = c.shuffleMode
+        c.transportControls.setShuffleMode(
+            if (mode == android.media.session.PlaybackState.SHUFFLE_MODE_ALL)
+                android.media.session.PlaybackState.SHUFFLE_MODE_NONE
+            else
+                android.media.session.PlaybackState.SHUFFLE_MODE_ALL
+        )
+    }
 }

@@ -51,5 +51,19 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".MusicWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.musiclockart.WIDGET_PLAY_PAUSE" />
+                <action android:name="com.example.musiclockart.WIDGET_NEXT" />
+                <action android:name="com.example.musiclockart.WIDGET_PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/music_widget_info" />
+        </receiver>
+
     </application>
 </manifest>

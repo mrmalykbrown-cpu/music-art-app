@@ -23,4 +23,6 @@
     <string name="animated_opt">Optimize for animated artwork</string>
     <string name="open_settings">Settings</string>
     <string name="credits">Malyk Brown 2026 · Built with Claude</string>
+    <string name="favorite">Favorite</string>
+    <string name="shuffle">Shuffle</string>
 </resources>

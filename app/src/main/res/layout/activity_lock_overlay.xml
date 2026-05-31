@@ -131,17 +131,59 @@
                     android:textSize="12sp"
                     android:visibility="gone" />
 
+                <SeekBar
+                    android:id="@+id/progress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:max="1000" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/elapsed"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="0:00"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/total"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:text="0:00"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
                     android:gravity="center"
                     android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/star"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/favorite"
+                        android:src="@android:drawable/btn_star_big_off"
+                        app:tint="#CCFFFFFF" />
 
                     <ImageButton
                         android:id="@+id/prev"
                         android:layout_width="56dp"
                         android:layout_height="56dp"
+                        android:layout_marginStart="12dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/prev"
                         android:src="@android:drawable/ic_media_previous"
@@ -151,7 +193,7 @@
                         android:id="@+id/playPause"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:layout_marginHorizontal="24dp"
+                        android:layout_marginHorizontal="16dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/play_pause"
                         android:src="@android:drawable/ic_media_play"
@@ -161,10 +203,20 @@
                         android:id="@+id/next"
                         android:layout_width="56dp"
                         android:layout_height="56dp"
+                        android:layout_marginEnd="12dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="@string/next"
                         android:src="@android:drawable/ic_media_next"
                         app:tint="@android:color/white" />
+
+                    <ImageButton
+                        android:id="@+id/shuffle"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/shuffle"
+                        android:src="@drawable/ic_shuffle"
+                        app:tint="#CCFFFFFF" />
                 </LinearLayout>
             </LinearLayout>
         </FrameLayout>

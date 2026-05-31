@@ -115,6 +115,9 @@ class MediaNotificationListener : NotificationListenerService() {
         val clockColor = if (art != null) ImageEffects.clockColor(art) else android.graphics.Color.WHITE
         val luminance = if (art != null) ImageEffects.averageLuminance(art) else 0.5f
 
+        val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        val position = playback?.position ?: 0L
+
         NowPlaying.update(
             TrackInfo(
                 title = title,
@@ -123,9 +126,13 @@ class MediaNotificationListener : NotificationListenerService() {
                 isPlaying = isPlaying,
                 packageName = controller.packageName,
                 clockColor = clockColor,
-                artLuminance = luminance
+                artLuminance = luminance,
+                positionMs = position,
+                durationMs = duration
             )
         )
+
+        MusicWidgetProvider.pushUpdate(this, NowPlaying.track.value)
 
         if (art != null) {
             val hash = art.generationId
