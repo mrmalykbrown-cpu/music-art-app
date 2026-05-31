@@ -5,15 +5,23 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <!-- Art-themed backdrop (blurred copy of the album art) -->
+    <!-- Two stacked backdrops for crossfading between artworks -->
     <ImageView
-        android:id="@+id/backdrop"
+        android:id="@+id/backdropA"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:contentDescription="@null" />
 
-    <!-- Scrim for legibility -->
+    <ImageView
+        android:id="@+id/backdropB"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0"
+        android:scaleType="centerCrop"
+        android:contentDescription="@null" />
+
+    <!-- Gradient scrim for text legibility -->
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -22,9 +30,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="28dp">
+        android:padding="24dp">
 
-        <!-- Adaptive-color clock at the top -->
+        <!-- Adaptive-color clock -->
         <TextView
             android:id="@+id/date"
             android:layout_width="wrap_content"
@@ -57,87 +65,109 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <!-- Player controls section at the bottom -->
-        <LinearLayout
+        <!-- Frosted-glass player card. The blurImage behind it is a blurred snapshot
+             of the artwork, RenderEffect-blurred to mimic One UI 8.5 / iOS glass. -->
+        <FrameLayout
             android:id="@+id/playerCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/player_card_bg"
-            android:padding="20dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
-            <TextView
-                android:id="@+id/title"
+            <!-- Blurred art layer clipped to the card shape (frosted backdrop) -->
+            <ImageView
+                android:id="@+id/cardBlur"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="@string/nothing_playing"
-                android:textColor="@android:color/white"
-                android:textSize="22sp"
-                android:textStyle="bold" />
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:contentDescription="@null"
+                android:outlineProvider="background"
+                android:clipToOutline="true"
+                android:background="@drawable/card_clip" />
 
-            <TextView
-                android:id="@+id/artist"
+            <!-- Translucent glass tint over the blur -->
+            <View
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#CCFFFFFF"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/bluetoothChip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/chip_bg"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="6dp"
-                android:textColor="@android:color/white"
-                android:textSize="12sp"
-                android:visibility="gone" />
+                android:layout_height="match_parent"
+                android:background="@drawable/glass_tint" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:padding="22dp">
 
-                <ImageButton
-                    android:id="@+id/prev"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/prev"
-                    android:src="@android:drawable/ic_media_previous"
-                    app:tint="@android:color/white" />
+                <TextView
+                    android:id="@+id/title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/nothing_playing"
+                    android:textColor="@android:color/white"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
-                <ImageButton
-                    android:id="@+id/playPause"
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
-                    android:layout_marginHorizontal="24dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/play_pause"
-                    android:src="@android:drawable/ic_media_play"
-                    app:tint="@android:color/white" />
+                <TextView
+                    android:id="@+id/artist"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="15sp" />
 
-                <ImageButton
-                    android:id="@+id/next"
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/next"
-                    android:src="@android:drawable/ic_media_next"
-                    app:tint="@android:color/white" />
+                <TextView
+                    android:id="@+id/bluetoothChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/chip_bg"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="6dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/prev"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/prev"
+                        android:src="@android:drawable/ic_media_previous"
+                        app:tint="@android:color/white" />
+
+                    <ImageButton
+                        android:id="@+id/playPause"
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_marginHorizontal="24dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/play_pause"
+                        android:src="@android:drawable/ic_media_play"
+                        app:tint="@android:color/white" />
+
+                    <ImageButton
+                        android:id="@+id/next"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/next"
+                        android:src="@android:drawable/ic_media_next"
+                        app:tint="@android:color/white" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
+        </FrameLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </FrameLayout>

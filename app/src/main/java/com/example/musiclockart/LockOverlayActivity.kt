@@ -2,6 +2,7 @@ package com.example.musiclockart
 
 import android.animation.ObjectAnimator
 import android.animation.PropertyValuesHolder
+import android.graphics.Bitmap
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Bundle
@@ -10,6 +11,7 @@ import android.os.Looper
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
@@ -23,15 +25,21 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Full-screen, art-themed overlay drawn over the lock screen.
- * Top: adaptive-color clock + date. Bottom: player-controls card.
- * No album-art square. Brightness + blur driven by Prefs.
+ * Full-screen, art-themed overlay over the lock screen.
+ *  - Two stacked backdrops crossfade between artworks for smooth transitions.
+ *  - A floating frosted-glass player card with a RenderEffect-blurred art layer
+ *    behind it (mimics One UI 8.5 / iOS "liquid glass").
+ *  - Adaptive-color clock, working transport controls, brightness + blur from Prefs.
  */
 class LockOverlayActivity : ComponentActivity() {
 
     private lateinit var binding: ActivityLockOverlayBinding
     private lateinit var prefs: Prefs
     private var kenBurns: ObjectAnimator? = null
+
+    // Which backdrop is currently shown (we crossfade to the other).
+    private var showingA = true
+    private var currentArtId = 0
 
     private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
@@ -55,7 +63,8 @@ class LockOverlayActivity : ComponentActivity() {
         binding = ActivityLockOverlayBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        applyBlur()
+        applyBackdropBlur()
+        applyCardFrost()
         applyBrightness(null)
 
         binding.dismiss.setOnClickListener { finish() }
@@ -70,7 +79,7 @@ class LockOverlayActivity : ComponentActivity() {
         super.onResume()
         updateClock()
         clockHandler.postDelayed(clockTick, 10_000)
-        applyBlur()
+        applyBackdropBlur()
     }
 
     override fun onPause() {
@@ -78,17 +87,23 @@ class LockOverlayActivity : ComponentActivity() {
         clockHandler.removeCallbacks(clockTick)
     }
 
-    private fun applyBlur() {
+    /** Soft blur on the full-screen backdrop (driven by Prefs blur slider). */
+    private fun applyBackdropBlur() {
         val r = prefs.blurRadius.coerceAtLeast(1).toFloat()
-        binding.backdrop.setRenderEffect(
-            RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
+        val fx = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
+        binding.backdropA.setRenderEffect(fx)
+        binding.backdropB.setRenderEffect(fx)
+    }
+
+    /** Heavy frosted-glass blur on the player card's art layer (fixed, strong). */
+    private fun applyCardFrost() {
+        binding.cardBlur.setRenderEffect(
+            RenderEffect.createBlurEffect(70f, 70f, Shader.TileMode.CLAMP)
         )
     }
 
-    /** Manual slider value, or auto-dim based on artwork luminance when enabled. */
     private fun applyBrightness(luminance: Float?) {
         val target = if (prefs.autoBrightness && luminance != null) {
-            // Dark art -> dimmer, bright art -> brighter, clamped to a sane range.
             (0.35f + luminance * 0.55f).coerceIn(0.15f, 0.95f)
         } else {
             prefs.brightness
@@ -120,13 +135,16 @@ class LockOverlayActivity : ComponentActivity() {
         binding.title.text = track.title.ifBlank { getString(R.string.nothing_playing) }
         binding.artist.text = track.artist
 
-        // Adaptive clock color from the artwork.
         binding.clock.setTextColor(track.clockColor)
         binding.date.setTextColor(track.clockColor)
 
-        track.art?.let {
-            binding.backdrop.setImageBitmap(it)
-            startKenBurns()
+        track.art?.let { art ->
+            if (art.generationId != currentArtId) {
+                currentArtId = art.generationId
+                crossfadeTo(art)
+                binding.cardBlur.setImageBitmap(art)
+                startKenBurns()
+            }
         }
 
         applyBrightness(track.artLuminance)
@@ -144,12 +162,26 @@ class LockOverlayActivity : ComponentActivity() {
         }
     }
 
+    /** Smoothly dissolve from the visible backdrop to the new artwork. */
+    private fun crossfadeTo(art: Bitmap) {
+        val incoming: ImageView = if (showingA) binding.backdropB else binding.backdropA
+        val outgoing: ImageView = if (showingA) binding.backdropA else binding.backdropB
+
+        incoming.setImageBitmap(art)
+        incoming.alpha = 0f
+        incoming.animate().alpha(1f).setDuration(650).start()
+        outgoing.animate().alpha(0f).setDuration(650).start()
+
+        showingA = !showingA
+    }
+
     private fun startKenBurns() {
-        if (kenBurns?.isRunning == true) return
-        binding.backdrop.scaleX = 1.1f
-        binding.backdrop.scaleY = 1.1f
+        kenBurns?.cancel()
+        val target: ImageView = if (showingA) binding.backdropA else binding.backdropB
+        target.scaleX = 1.1f
+        target.scaleY = 1.1f
         kenBurns = ObjectAnimator.ofPropertyValuesHolder(
-            binding.backdrop,
+            target,
             PropertyValuesHolder.ofFloat("scaleX", 1.1f, 1.3f),
             PropertyValuesHolder.ofFloat("scaleY", 1.1f, 1.3f),
             PropertyValuesHolder.ofFloat("translationX", 0f, -40f),
