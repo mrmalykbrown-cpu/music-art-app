@@ -14,7 +14,9 @@ data class TrackInfo(
     val artist: String = "",
     val art: Bitmap? = null,
     val isPlaying: Boolean = false,
-    val packageName: String = ""
+    val packageName: String = "",
+    val clockColor: Int = android.graphics.Color.WHITE,
+    val artLuminance: Float = 0.5f
 )
 
 object NowPlaying {

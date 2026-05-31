@@ -34,6 +34,8 @@ class MediaNotificationListener : NotificationListenerService() {
     private var bluetoothWatcher: BluetoothWatcher? = null
     private var activeController: MediaController? = null
     private var lastArtHash: Int = 0
+    private var lastWallpaperAt: Long = 0L
+    private lateinit var prefs: Prefs
 
     private val sessionsListener =
         MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
@@ -53,6 +55,7 @@ class MediaNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "Listener connected")
+        prefs = Prefs(this)
         sessionManager = getSystemService(MediaSessionManager::class.java)
         val component = ComponentName(this, MediaNotificationListener::class.java)
         try {
@@ -87,6 +90,7 @@ class MediaNotificationListener : NotificationListenerService() {
         activeController?.unregisterCallback(controllerCallback)
         activeController = top
         activeController?.registerCallback(controllerCallback)
+        Transport.setController(top)
         handleUpdate()
     }
 
@@ -108,13 +112,18 @@ class MediaNotificationListener : NotificationListenerService() {
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
 
+        val clockColor = if (art != null) ImageEffects.clockColor(art) else android.graphics.Color.WHITE
+        val luminance = if (art != null) ImageEffects.averageLuminance(art) else 0.5f
+
         NowPlaying.update(
             TrackInfo(
                 title = title,
                 artist = artist,
                 art = art,
                 isPlaying = isPlaying,
-                packageName = controller.packageName
+                packageName = controller.packageName,
+                clockColor = clockColor,
+                artLuminance = luminance
             )
         )
 
@@ -122,7 +131,14 @@ class MediaNotificationListener : NotificationListenerService() {
             val hash = art.generationId
             if (hash != lastArtHash) {
                 lastArtHash = hash
-                pushWallpaper(art)
+                // Throttle wallpaper writes when artwork changes rapidly (animated covers),
+                // so we don't thrash WallpaperManager. Min gap depends on the toggle.
+                val now = System.currentTimeMillis()
+                val minGap = if (prefs.animatedArt) 1500L else 400L
+                if (now - lastWallpaperAt >= minGap) {
+                    lastWallpaperAt = now
+                    pushWallpaper(art)
+                }
             }
         }
     }
@@ -136,7 +152,8 @@ class MediaNotificationListener : NotificationListenerService() {
                     .defaultDisplay.getRealMetrics(metrics)
 
                 val backdrop = ImageEffects.makeWallpaperBackdrop(
-                    art, metrics.widthPixels, metrics.heightPixels
+                    art, metrics.widthPixels, metrics.heightPixels,
+                    blurRadius = prefs.blurRadius
                 )
                 val wm = WallpaperManager.getInstance(this@MediaNotificationListener)
                 wm.setBitmap(backdrop, null, true, WallpaperManager.FLAG_LOCK)

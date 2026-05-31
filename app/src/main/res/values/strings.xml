@@ -13,4 +13,14 @@
     <string name="playing_on">Playing on %1$s</string>
     <string name="dismiss">Dismiss</string>
     <string name="help_text">Notification access is required so the app can read the album art and title from your music player (Spotify, Apple Music, YT Music, etc). Play a song, then lock your phone — the lock screen wallpaper updates to the blurred album art automatically.</string>
+    <string name="prev">Previous</string>
+    <string name="next">Next</string>
+    <string name="play_pause">Play or pause</string>
+    <string name="settings">Settings</string>
+    <string name="blur_amount">Wallpaper blur</string>
+    <string name="brightness_label">Overlay brightness</string>
+    <string name="auto_brightness">Auto brightness from artwork</string>
+    <string name="animated_opt">Optimize for animated artwork</string>
+    <string name="open_settings">Settings</string>
+    <string name="credits">Malyk Brown 2026 · Built with Claude</string>
 </resources>

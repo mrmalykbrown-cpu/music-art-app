@@ -5,37 +5,70 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import androidx.core.graphics.ColorUtils
+import androidx.palette.graphics.Palette
 import kotlin.math.max
 
 /**
- * Blur + tinting helpers.
+ * Blur + tinting + color-analysis helpers.
  *
- * For the wallpaper bitmap we can't use RenderEffect (that's a live-View GPU effect),
- * so we use a fast downscale-based stack blur. The live overlay card uses
- * RenderEffect.createBlurEffect() applied directly to the View in LockOverlayActivity.
+ * The wallpaper bitmap uses a fast downscale stack blur (RenderEffect is for live Views,
+ * not bitmaps). The overlay card's live backdrop uses RenderEffect in LockOverlayActivity.
  */
 object ImageEffects {
 
     /**
-     * Produce a darkened, blurred backdrop suitable for a full-screen lock wallpaper.
+     * Produce a (optionally blurred, optionally darkened) full-screen backdrop.
+     * blurRadius 0 keeps the art sharp.
      */
     fun makeWallpaperBackdrop(
         source: Bitmap,
         targetWidth: Int,
         targetHeight: Int,
-        blurRadius: Int = 45,
-        scrim: Float = 0.35f
+        blurRadius: Int = 0,
+        scrim: Float = 0.08f
     ): Bitmap {
-        // Center-crop the source to the target aspect ratio.
         val cropped = centerCrop(source, targetWidth, targetHeight)
-        val blurred = stackBlur(cropped, blurRadius)
-        // Apply a dark scrim so white text stays legible.
-        val canvas = Canvas(blurred)
-        val paint = Paint().apply {
-            color = ColorUtils.setAlphaComponent(Color.BLACK, (scrim * 255).toInt())
+        val base = if (blurRadius > 0) stackBlur(cropped, blurRadius)
+                   else cropped.copy(Bitmap.Config.ARGB_8888, true)
+        if (scrim > 0f) {
+            val canvas = Canvas(base)
+            val paint = Paint().apply {
+                color = ColorUtils.setAlphaComponent(Color.BLACK, (scrim * 255).toInt())
+            }
+            canvas.drawRect(0f, 0f, base.width.toFloat(), base.height.toFloat(), paint)
         }
-        canvas.drawRect(0f, 0f, blurred.width.toFloat(), blurred.height.toFloat(), paint)
-        return blurred
+        return base
+    }
+
+    /** Average luminance 0..1. Used for auto-brightness (dark art -> dimmer screen). */
+    fun averageLuminance(bitmap: Bitmap): Float {
+        val w = 24
+        val h = 24
+        val small = Bitmap.createScaledBitmap(bitmap, w, h, true)
+        val pix = IntArray(w * h)
+        small.getPixels(pix, 0, w, 0, 0, w, h)
+        var sum = 0.0
+        for (p in pix) {
+            val r = (p ushr 16) and 0xff
+            val g = (p ushr 8) and 0xff
+            val b = p and 0xff
+            sum += (0.299 * r + 0.587 * g + 0.114 * b)
+        }
+        return (sum / (pix.size * 255.0)).toFloat()
+    }
+
+    /**
+     * Pick a legible clock color from the artwork: a light tint of the dominant
+     * vibrant swatch, so the clock "matches" the wallpaper but stays readable.
+     */
+    fun clockColor(bitmap: Bitmap): Int {
+        val palette = Palette.from(bitmap).generate()
+        val base = palette.lightVibrantSwatch?.rgb
+            ?: palette.vibrantSwatch?.rgb
+            ?: palette.lightMutedSwatch?.rgb
+            ?: palette.dominantSwatch?.rgb
+            ?: Color.WHITE
+        return ColorUtils.blendARGB(base, Color.WHITE, 0.55f)
     }
 
     private fun centerCrop(src: Bitmap, w: Int, h: Int): Bitmap {
@@ -52,15 +85,9 @@ object ImageEffects {
         return Bitmap.createBitmap(scaled, x, y, w.coerceAtMost(scaledW), h.coerceAtMost(scaledH))
     }
 
-    /**
-     * Stack blur — fast, good-looking, no RenderScript dependency.
-     * Works by downscaling, box-blurring, then upscaling.
-     */
     private fun stackBlur(src: Bitmap, radius: Int): Bitmap {
         if (radius < 1) return src.copy(Bitmap.Config.ARGB_8888, true)
-
-        // Downscale first; box blur on a small bitmap looks like a big blur upscaled.
-        val scale = 0.25f
+        val scale = 0.35f
         val small = Bitmap.createScaledBitmap(
             src,
             (src.width * scale).toInt().coerceAtLeast(1),
@@ -77,12 +104,8 @@ object ImageEffects {
         val h = bitmap.height
         val pix = IntArray(w * h)
         bitmap.getPixels(pix, 0, w, 0, 0, w, h)
-
-        // Horizontal pass
         boxBlurPass(pix, w, h, radius, horizontal = true)
-        // Vertical pass
         boxBlurPass(pix, w, h, radius, horizontal = false)
-
         val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         out.setPixels(pix, 0, w, 0, 0, w, h)
         return out
@@ -93,7 +116,6 @@ object ImageEffects {
         val inner = if (horizontal) w else h
         val div = radius * 2 + 1
         val temp = IntArray(inner)
-
         for (o in 0 until outer) {
             var ra = 0; var rr = 0; var gg = 0; var bb = 0
             for (i in -radius..radius) {

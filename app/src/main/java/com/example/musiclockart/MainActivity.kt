@@ -48,6 +48,10 @@ class MainActivity : ComponentActivity() {
         binding.btnPreview.setOnClickListener {
             startActivity(Intent(this, LockOverlayActivity::class.java))
         }
+
+        binding.btnSettings.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 
     override fun onResume() {
