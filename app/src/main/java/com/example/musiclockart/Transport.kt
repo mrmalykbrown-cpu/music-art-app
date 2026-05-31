@@ -36,12 +36,9 @@ object Transport {
 
     fun toggleShuffle() {
         val c = controller ?: return
+        // SHUFFLE_MODE_NONE = 0, SHUFFLE_MODE_ALL = 1 (PlaybackState constants
+        // aren't exposed on android.media.session.PlaybackState, so use literals).
         val mode = c.shuffleMode
-        c.transportControls.setShuffleMode(
-            if (mode == android.media.session.PlaybackState.SHUFFLE_MODE_ALL)
-                android.media.session.PlaybackState.SHUFFLE_MODE_NONE
-            else
-                android.media.session.PlaybackState.SHUFFLE_MODE_ALL
-        )
+        c.transportControls.setShuffleMode(if (mode == 1) 0 else 1)
     }
 }
