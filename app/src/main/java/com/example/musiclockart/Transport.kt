@@ -35,10 +35,10 @@ object Transport {
     }
 
     fun toggleShuffle() {
-        val c = controller ?: return
-        // SHUFFLE_MODE_NONE = 0, SHUFFLE_MODE_ALL = 1 (PlaybackState constants
-        // aren't exposed on android.media.session.PlaybackState, so use literals).
-        val mode = c.shuffleMode
-        c.transportControls.setShuffleMode(if (mode == 1) 0 else 1)
+        // Shuffle is intentionally not wired to the framework API: getShuffleMode/
+        // setShuffleMode behave inconsistently across players and platform versions,
+        // and most apps (Spotify, Apple Music) only expose shuffle via their own
+        // custom session actions, not the standard transport. Left as a no-op so the
+        // button is decorative without risking unsupported-API crashes.
     }
 }
