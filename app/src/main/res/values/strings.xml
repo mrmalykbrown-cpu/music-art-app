@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MusicLockArt</string>
+    <string name="listener_label">MusicLockArt media reader</string>
+    <string name="tagline">Apple Music–style lock screen art that follows whatever you\'re playing.</string>
+    <string name="setup_heading">Setup</string>
+    <string name="status_notification">Notification access: %1$s</string>
+    <string name="status_bluetooth">Bluetooth permission: %1$s</string>
+    <string name="grant_notification_access">Grant notification access</string>
+    <string name="grant_permissions">Grant Bluetooth &amp; notification permissions</string>
+    <string name="preview_overlay">Preview lock screen overlay</string>
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="playing_on">Playing on %1$s</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="help_text">Notification access is required so the app can read the album art and title from your music player (Spotify, Apple Music, YT Music, etc). Play a song, then lock your phone — the lock screen wallpaper updates to the blurred album art automatically.</string>
+</resources>
