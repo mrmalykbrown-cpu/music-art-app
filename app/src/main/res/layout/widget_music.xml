@@ -1,70 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="12dp"
-    android:gravity="center_vertical">
+    android:padding="18dp">
 
-    <ImageView
-        android:id="@+id/widgetArt"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:scaleType="centerCrop"
-        android:contentDescription="@null"
-        android:background="@drawable/card_clip"
-        android:clipToOutline="true" />
+    <!-- Title + artist, centered like the iOS card -->
+    <TextView
+        android:id="@+id/widgetTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="@string/nothing_playing"
+        android:textColor="@android:color/white"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widgetArtist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="#B3FFFFFF"
+        android:textSize="13sp" />
+
+    <!-- Progress bar with time on both ends -->
+    <ProgressBar
+        android:id="@+id/widgetProgress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="14dp"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="#FFFFFFFF"
+        android:progressBackgroundTint="#40FFFFFF" />
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:orientation="vertical">
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/widgetTitle"
-            android:layout_width="match_parent"
+            android:id="@+id/widgetElapsed"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="@string/nothing_playing"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:layout_weight="1"
+            android:text="0:00"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp" />
 
         <TextView
-            android:id="@+id/widgetArtist"
-            android:layout_width="match_parent"
+            android:id="@+id/widgetTotal"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp" />
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="0:00"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp" />
     </LinearLayout>
 
-    <ImageButton
-        android:id="@+id/widgetPrev"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="@string/prev"
-        android:src="@android:drawable/ic_media_previous" />
+    <!-- Control row: star / rewind / play-pause / forward / airplay -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:orientation="horizontal">
 
-    <ImageButton
-        android:id="@+id/widgetPlayPause"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="@string/play_pause"
-        android:src="@android:drawable/ic_media_play" />
+        <ImageButton
+            android:id="@+id/widgetStar"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/favorite"
+            android:src="@android:drawable/btn_star_big_off"
+            android:scaleType="fitCenter"
+            app:tint="#B3FFFFFF" />
 
-    <ImageButton
-        android:id="@+id/widgetNext"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="@string/next"
-        android:src="@android:drawable/ic_media_next" />
+        <ImageButton
+            android:id="@+id/widgetPrev"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/prev"
+            android:src="@android:drawable/ic_media_previous"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/widgetPlayPause"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/play_pause"
+            android:src="@android:drawable/ic_media_play"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/widgetNext"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/next"
+            android:src="@android:drawable/ic_media_next"
+            android:scaleType="fitCenter" />
+
+        <ImageButton
+            android:id="@+id/widgetAirplay"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/output"
+            android:src="@drawable/ic_airplay"
+            android:scaleType="fitCenter"
+            app:tint="#B3FFFFFF" />
+    </LinearLayout>
 </LinearLayout>

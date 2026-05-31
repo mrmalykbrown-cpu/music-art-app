@@ -27,38 +27,20 @@ object ImageEffects {
         blurRadius: Int = 0,
         scrim: Float = 0.08f
     ): Bitmap {
-        // Two-layer composition so square (1:1) art never distorts or gets heavily
-        // cropped on a tall screen:
-        //   1. A blurred, zoomed copy of the art fills the whole screen (no black bars).
-        //   2. The full, undistorted art is drawn centered on top at its real aspect.
-        val out = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(out)
-
-        // Layer 1: blurred fill (always blurred enough to read as a soft backdrop).
-        val fillBlur = (if (blurRadius > 0) blurRadius else 55).coerceAtLeast(35)
-        val filled = stackBlur(centerCrop(source, targetWidth, targetHeight), fillBlur)
-        canvas.drawBitmap(filled, 0f, 0f, null)
-
-        // Layer 2: the art itself, scaled to fit within the screen width (no crop),
-        // centered vertically. If the user set a blur, blur this layer too; otherwise
-        // keep it crisp.
-        val fitWidth = (targetWidth * 0.94f).toInt()
-        val srcRatio = source.width.toFloat() / source.height
-        val artW = fitWidth
-        val artH = (fitWidth / srcRatio).toInt()
-        var artLayer = Bitmap.createScaledBitmap(source, artW, artH, true)
-        if (blurRadius > 0) artLayer = stackBlur(artLayer, blurRadius)
-        val left = (targetWidth - artW) / 2f
-        val top = (targetHeight - artH) / 2f
-        canvas.drawBitmap(artLayer, left, top, null)
-
+        // Edge-to-edge fill (iOS 26 lock-screen style): the art covers the entire
+        // screen. A 1:1 cover is zoomed and center-cropped to fill a tall screen,
+        // so top/bottom are trimmed but there are no bars and no distortion.
+        val cropped = centerCrop(source, targetWidth, targetHeight)
+        val base = if (blurRadius > 0) stackBlur(cropped, blurRadius)
+                   else cropped.copy(Bitmap.Config.ARGB_8888, true)
         if (scrim > 0f) {
+            val canvas = Canvas(base)
             val paint = Paint().apply {
                 color = ColorUtils.setAlphaComponent(Color.BLACK, (scrim * 255).toInt())
             }
-            canvas.drawRect(0f, 0f, targetWidth.toFloat(), targetHeight.toFloat(), paint)
+            canvas.drawRect(0f, 0f, base.width.toFloat(), base.height.toFloat(), paint)
         }
-        return out
+        return base
     }
 
     /** Average luminance 0..1. Used for auto-brightness (dark art -> dimmer screen). */

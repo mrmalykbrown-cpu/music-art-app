@@ -25,4 +25,5 @@
     <string name="credits">Malyk Brown 2026 · Built with Claude</string>
     <string name="favorite">Favorite</string>
     <string name="shuffle">Shuffle</string>
+    <string name="output">Audio output</string>
 </resources>

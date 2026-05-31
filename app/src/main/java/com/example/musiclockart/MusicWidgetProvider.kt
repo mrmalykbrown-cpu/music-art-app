@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.widget.RemoteViews
 
 /**
@@ -69,11 +68,17 @@ class MusicWidgetProvider : AppWidgetProvider() {
             )
             views.setTextViewText(R.id.widgetArtist, track.artist)
 
-            val art: Bitmap? = track.art
-            if (art != null) {
-                views.setImageViewBitmap(R.id.widgetArt, art)
+            // Progress bar + time labels
+            if (track.durationMs > 0) {
+                val pct = (track.positionMs.toFloat() / track.durationMs * 1000)
+                    .toInt().coerceIn(0, 1000)
+                views.setProgressBar(R.id.widgetProgress, 1000, pct, false)
+                views.setTextViewText(R.id.widgetElapsed, formatTime(track.positionMs))
+                views.setTextViewText(R.id.widgetTotal, formatTime(track.durationMs))
             } else {
-                views.setImageViewResource(R.id.widgetArt, R.drawable.ic_launcher_foreground)
+                views.setProgressBar(R.id.widgetProgress, 1000, 0, false)
+                views.setTextViewText(R.id.widgetElapsed, "0:00")
+                views.setTextViewText(R.id.widgetTotal, "0:00")
             }
 
             views.setImageViewResource(
@@ -85,8 +90,26 @@ class MusicWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widgetPlayPause, pi(context, ACTION_PLAY_PAUSE, 1))
             views.setOnClickPendingIntent(R.id.widgetNext, pi(context, ACTION_NEXT, 2))
             views.setOnClickPendingIntent(R.id.widgetPrev, pi(context, ACTION_PREV, 3))
+            // Star and airplay open the app (these need per-player actions the
+            // standard transport API doesn't expose uniformly).
+            views.setOnClickPendingIntent(R.id.widgetStar, openAppPi(context, 4))
+            views.setOnClickPendingIntent(R.id.widgetAirplay, openAppPi(context, 5))
 
             mgr.updateAppWidget(widgetId, views)
+        }
+
+        private fun formatTime(ms: Long): String {
+            val totalSec = (ms / 1000).coerceAtLeast(0)
+            return "%d:%02d".format(totalSec / 60, totalSec % 60)
+        }
+
+        private fun openAppPi(context: Context, req: Int): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return PendingIntent.getActivity(
+                context, req, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
 
         private fun pi(context: Context, action: String, req: Int): PendingIntent {
