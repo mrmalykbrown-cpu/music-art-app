@@ -10,7 +10,7 @@
         android:id="@+id/backdropA"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
+        android:scaleType="fitXY"
         android:contentDescription="@null" />
 
     <ImageView
@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:alpha="0"
-        android:scaleType="centerCrop"
+        android:scaleType="fitXY"
         android:contentDescription="@null" />
 
     <!-- Gradient scrim for text legibility -->

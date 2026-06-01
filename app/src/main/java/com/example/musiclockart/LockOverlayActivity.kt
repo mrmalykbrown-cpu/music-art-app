@@ -10,7 +10,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
@@ -179,7 +178,15 @@ class LockOverlayActivity : ComponentActivity() {
         track.art?.let { art ->
             if (art.generationId != currentArtId) {
                 currentArtId = art.generationId
-                crossfadeTo(art)
+                // Compose the same full-cover + blurred-fill wallpaper the system gets,
+                // so the overlay shows the whole cover (not a center-crop).
+                val dm = resources.displayMetrics
+                val composed = try {
+                    ImageEffects.makeWallpaperBackdrop(
+                        art, dm.widthPixels, dm.heightPixels, blurRadius = 0, scrim = 0.06f
+                    )
+                } catch (e: Exception) { art }
+                crossfadeTo(composed)
                 binding.cardBlur.animate().alpha(0f).setDuration(300).withEndAction {
                     binding.cardBlur.setImageBitmap(art)
                     binding.cardBlur.animate().alpha(1f).setDuration(500).start()
@@ -236,8 +243,19 @@ class LockOverlayActivity : ComponentActivity() {
 
         incoming.setImageBitmap(art)
         incoming.alpha = 0f
-        incoming.animate().alpha(1f).setDuration(1100).start()
-        outgoing.animate().alpha(0f).setDuration(1100).start()
+        // Incoming fades up first; outgoing lingers then fades out, so there's never
+        // a frame where both are transparent (that's what caused the black flash).
+        incoming.animate()
+            .alpha(1f)
+            .setDuration(900)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
+        outgoing.animate()
+            .alpha(0f)
+            .setStartDelay(300)
+            .setDuration(900)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
 
         showingA = !showingA
     }
@@ -245,19 +263,31 @@ class LockOverlayActivity : ComponentActivity() {
     private fun startKenBurns() {
         kenBurns?.cancel()
         val target: ImageView = if (showingA) binding.backdropA else binding.backdropB
-        target.scaleX = 1.1f
-        target.scaleY = 1.1f
+
+        // Living drift: a slow, organic pan + zoom that makes a static cover feel
+        // alive. Each cycle picks a gentle direction so it never looks mechanical.
+        val dir = (Math.random() * 4).toInt()
+        val (dx, dy) = when (dir) {
+            0 -> -36f to -28f
+            1 -> 32f to -24f
+            2 -> -30f to 26f
+            else -> 34f to 22f
+        }
+        target.scaleX = 1.08f
+        target.scaleY = 1.08f
+        target.translationX = 0f
+        target.translationY = 0f
         kenBurns = ObjectAnimator.ofPropertyValuesHolder(
             target,
-            PropertyValuesHolder.ofFloat("scaleX", 1.1f, 1.3f),
-            PropertyValuesHolder.ofFloat("scaleY", 1.1f, 1.3f),
-            PropertyValuesHolder.ofFloat("translationX", 0f, -40f),
-            PropertyValuesHolder.ofFloat("translationY", 0f, -30f)
+            PropertyValuesHolder.ofFloat("scaleX", 1.08f, 1.22f),
+            PropertyValuesHolder.ofFloat("scaleY", 1.08f, 1.22f),
+            PropertyValuesHolder.ofFloat("translationX", 0f, dx),
+            PropertyValuesHolder.ofFloat("translationY", 0f, dy)
         ).apply {
-            duration = 20000
+            duration = 28000
             repeatCount = ObjectAnimator.INFINITE
             repeatMode = ObjectAnimator.REVERSE
-            interpolator = AccelerateDecelerateInterpolator()
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
             start()
         }
     }

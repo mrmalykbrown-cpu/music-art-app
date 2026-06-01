@@ -3,6 +3,8 @@ package com.example.musiclockart
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Paint
 import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
@@ -27,20 +29,121 @@ object ImageEffects {
         blurRadius: Int = 0,
         scrim: Float = 0.08f
     ): Bitmap {
-        // Edge-to-edge fill (iOS 26 lock-screen style): the art covers the entire
-        // screen. A 1:1 cover is zoomed and center-cropped to fill a tall screen,
-        // so top/bottom are trimmed but there are no bars and no distortion.
-        val cropped = centerCrop(source, targetWidth, targetHeight)
-        val base = if (blurRadius > 0) stackBlur(cropped, blurRadius)
-                   else cropped.copy(Bitmap.Config.ARGB_8888, true)
+        // Edge-to-edge fill, no distortion: the cover is scaled to cover the whole
+        // screen and cropped (never stretched). The crop is biased slightly upward so
+        // the subject of the art (usually centered or upper-middle) stays in frame,
+        // rather than a dead-center slice. High-quality bitmap sampling throughout.
+        val out = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+
+        val cropped = smartCrop(source, targetWidth, targetHeight)
+        val base = if (blurRadius > 0) stackBlur(cropped, blurRadius) else cropped
+        canvas.drawBitmap(base, 0f, 0f, paint)
+
+        // Subtle top & bottom darkening so the clock and any controls stay legible
+        // over bright art (this is gradient, not a flat black-out).
+        val edge = targetHeight * 0.22f
+        val topGrad = Paint().apply {
+            shader = LinearGradient(
+                0f, 0f, 0f, edge,
+                Color.argb(120, 0, 0, 0), Color.TRANSPARENT, Shader.TileMode.CLAMP
+            )
+        }
+        val botGrad = Paint().apply {
+            shader = LinearGradient(
+                0f, targetHeight - edge, 0f, targetHeight.toFloat(),
+                Color.TRANSPARENT, Color.argb(140, 0, 0, 0), Shader.TileMode.CLAMP
+            )
+        }
+        canvas.drawRect(0f, 0f, targetWidth.toFloat(), edge, topGrad)
+        canvas.drawRect(0f, targetHeight - edge, targetWidth.toFloat(), targetHeight.toFloat(), botGrad)
+
         if (scrim > 0f) {
-            val canvas = Canvas(base)
-            val paint = Paint().apply {
+            val s = Paint().apply {
                 color = ColorUtils.setAlphaComponent(Color.BLACK, (scrim * 255).toInt())
             }
-            canvas.drawRect(0f, 0f, base.width.toFloat(), base.height.toFloat(), paint)
+            canvas.drawRect(0f, 0f, targetWidth.toFloat(), targetHeight.toFloat(), s)
         }
-        return base
+        return out
+    }
+
+    /**
+     * Content-aware cover crop. Scales the source to cover the target (no stretch),
+     * then chooses the crop window centred on the image's focal point — the region
+     * with the most visual "weight" (a blend of edge/detail density and luminance
+     * contrast, which faces and subjects score highly on). Falls back gracefully to
+     * centre if analysis is inconclusive.
+     */
+    private fun smartCrop(src: Bitmap, w: Int, h: Int): Bitmap {
+        val scale = maxOf(w.toFloat() / src.width, h.toFloat() / src.height)
+        val scaledW = (src.width * scale).toInt().coerceAtLeast(w)
+        val scaledH = (src.height * scale).toInt().coerceAtLeast(h)
+        val scaled = Bitmap.createScaledBitmap(src, scaledW, scaledH, true)
+
+        // Only the vertical axis usually needs a smart anchor (square -> tall screen
+        // crops top/bottom). Find the row band with the highest interest score.
+        val focalY = focalPointY(scaled, h)
+        val x = ((scaledW - w) / 2).coerceAtLeast(0)
+        val y = focalY.coerceIn(0, (scaledH - h).coerceAtLeast(0))
+        return Bitmap.createBitmap(scaled, x, y, w, h)
+    }
+
+    /**
+     * Returns the top Y for an h-tall crop window so it's centred on the most
+     * visually interesting horizontal band. Interest = local detail (difference
+     * between neighbouring rows) + deviation from mean brightness.
+     */
+    private fun focalPointY(bmp: Bitmap, cropH: Int): Int {
+        val sampleW = 32
+        val sampleH = 64
+        val small = Bitmap.createScaledBitmap(bmp, sampleW, sampleH, true)
+        val pix = IntArray(sampleW * sampleH)
+        small.getPixels(pix, 0, sampleW, 0, 0, sampleW, sampleH)
+
+        // Per-row average luminance.
+        val rowLum = FloatArray(sampleH)
+        var meanLum = 0f
+        for (r in 0 until sampleH) {
+            var sum = 0f
+            for (c in 0 until sampleW) {
+                val p = pix[r * sampleW + c]
+                val lum = 0.299f * ((p ushr 16) and 0xff) +
+                          0.587f * ((p ushr 8) and 0xff) +
+                          0.114f * (p and 0xff)
+                sum += lum
+            }
+            rowLum[r] = sum / sampleW
+            meanLum += rowLum[r]
+        }
+        meanLum /= sampleH
+
+        // Interest per row: vertical detail (|row - neighbour|) + brightness deviation.
+        val interest = FloatArray(sampleH)
+        for (r in 0 until sampleH) {
+            val detail = if (r > 0) kotlin.math.abs(rowLum[r] - rowLum[r - 1]) else 0f
+            val dev = kotlin.math.abs(rowLum[r] - meanLum)
+            interest[r] = detail * 1.5f + dev
+        }
+
+        // Slide a window the height of the crop (in sample space) and pick the band
+        // with the greatest summed interest; centre the real crop on it.
+        val winRows = (cropH.toFloat() / bmp.height * sampleH).toInt().coerceIn(1, sampleH)
+        var bestStart = 0
+        var bestScore = -1f
+        var running = 0f
+        for (r in 0 until sampleH) {
+            running += interest[r]
+            if (r >= winRows) running -= interest[r - winRows]
+            if (r >= winRows - 1 && running > bestScore) {
+                bestScore = running
+                bestStart = r - winRows + 1
+            }
+        }
+        // Map the sample-space band back to full scaled-bitmap coordinates.
+        val bandCenterFrac = (bestStart + winRows / 2f) / sampleH
+        val targetTop = (bandCenterFrac * bmp.height - cropH / 2f).toInt()
+        return targetTop
     }
 
     /** Average luminance 0..1. Used for auto-brightness (dark art -> dimmer screen). */
@@ -90,7 +193,7 @@ object ImageEffects {
 
     private fun stackBlur(src: Bitmap, radius: Int): Bitmap {
         if (radius < 1) return src.copy(Bitmap.Config.ARGB_8888, true)
-        val scale = 0.35f
+        val scale = 0.5f
         val small = Bitmap.createScaledBitmap(
             src,
             (src.width * scale).toInt().coerceAtLeast(1),
